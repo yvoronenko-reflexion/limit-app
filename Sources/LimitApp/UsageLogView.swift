@@ -126,7 +126,8 @@ private struct DayRow: View {
 
     private static let time: DateFormatter = {
         let f = DateFormatter()
-        f.dateFormat = "h:mm a"
+        f.locale = Locale(identifier: "en_US_POSIX") // pin to 24h, ignore the 12h locale pref
+        f.dateFormat = "HH:mm"
         return f
     }()
 

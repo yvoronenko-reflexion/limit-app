@@ -7,9 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 A native macOS menu-bar app (Swift + SwiftUI) that enforces a single **total daily
 active-use budget** for a child's macOS user, as a simpler replacement for built-in
 Screen Time. See `REQUIREMENTS.md` for the full spec and the v1/v2/v3 milestones. v1
-(timer, detection, menu bar, warnings, logging, PIN-gated settings) and v2 (opt-in
+(timer, detection, menu bar, warnings, logging, PIN-gated settings), v2 (opt-in
 parent-PIN lock overlay at expiry, PIN-gated extension, LaunchAgent + root-watchdog
-tamper-resistance) are implemented; iMessage (v3) is a later phase.
+tamper-resistance), and v3 (one-way iMessage to parents at expiry, with a compressed usage
+summary) are all implemented.
 
 ## Toolchain note (important)
 
@@ -66,12 +67,15 @@ Two modules (so the logic is unit-testable headlessly, without a GUI host):
     Accessibility permission), `WarningScheduler` (which thresholds are due),
     `UsageLogger` (append-only JSONL sessions), `Settings`/`DayState`, `SettingsStore` +
     `JSONFile` + `AppPaths` (persistence), `ParentPIN` (salted-hash gate),
-    `NotificationManager`, `Enforcement` (pure `shouldLock(remaining:enabled:)` decision).
+    `NotificationManager`, `Enforcement` (pure `shouldLock(remaining:enabled:)` decision),
+    `UsageSummary.brief` (pure: compresses sessions into idle-annotated blocks, widening the
+    merge gap on long logs), `MessageSender` (v3: drives Messages.app via `osascript`).
 - **`LimitApp`** (the app) — SwiftUI + the coordinator:
   - `AppModel` — the **heartbeat**. A 1 Hz `Timer` drives `tick()`: roll the day over,
-    sample activity, decrement only when active, fire due warnings, open/close usage
-    sessions, and persist (debounced every 5s; forced on rollover/settings/quit). Owns all
-    `LimitCore` pieces and publishes observable state.
+    sample activity, decrement only when active, fire due warnings (and, when the 0-second
+    "time's up" threshold fires, iMessage the parents once via `MessageSender` with today's
+    `UsageSummary.brief`), open/close usage sessions, and persist (debounced every 5s; forced
+    on rollover/settings/quit). Owns all `LimitCore` pieces and publishes observable state.
   - `LimitAppApp` (`@main`, `MenuBarExtra` + `Settings` scenes), `AppDelegate`
     (start/flush), `MenuContentView`, `SettingsView` (PIN-gated).
   - **(v2) `Lock/LockController` + `Lock/LockOverlayView`** — the enforcement overlay.

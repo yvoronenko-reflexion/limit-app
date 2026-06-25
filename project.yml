@@ -48,6 +48,8 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_LSUIElement: YES
         INFOPLIST_KEY_NSHumanReadableCopyright: ""
+        # Lets the TCC Automation prompt explain why Limit drives Messages (v3 expiry texts).
+        INFOPLIST_KEY_NSAppleEventsUsageDescription: "Limit sends a one-way iMessage to the configured parent when the daily screen-time budget runs out."
 
   LimitCoreTests:
     type: bundle.unit-test

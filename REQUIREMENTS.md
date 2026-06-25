@@ -125,7 +125,13 @@ the Mac is genuinely being used by that user.
   editing the budget state file directly — fully authoritative state needs a privileged
   helper that owns the budget (a proposal only; see *Proposed hardening* below — not
   implemented or scheduled).
-- **v3:** one-way iMessage notifications to parents via AppleScript → Messages.app.
+- **v3 (implemented):** one-way iMessage to the configured parent handles **at expiry
+  only** (when the budget hits 0), via AppleScript → Messages.app. The message carries a
+  compressed usage summary (`UsageSummary.brief`) that merges small-gap bursts into blocks
+  and widens the merge gap on long logs so it stays short. Sent at most once per budget day
+  (gated by the same `firedThresholds` set as the 0-second warning). Best-effort:
+  send failures (no Automation permission, Messages signed out) are swallowed. Per FR18 the
+  spec also mentioned warning/extension texts — narrowed to expiry-only by request.
 
 ---
 

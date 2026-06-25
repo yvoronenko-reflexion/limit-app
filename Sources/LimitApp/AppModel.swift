@@ -20,6 +20,7 @@ final class AppModel: ObservableObject {
     private let activity = ActivityMonitor()
     private let logger = UsageLogger()
     private let notifier = NotificationManager()
+    private let messenger = MessageSender()
     private let engine: TimerEngine
 
     private var ticker: Timer?
@@ -110,9 +111,37 @@ final class AppModel: ObservableObject {
             let message = WarningScheduler.message(for: threshold)
             notifier.notify(title: message.title, body: message.body,
                             id: "warn-\(engine.state.dayKey)-\(threshold)")
+            // The 0 threshold is "time's up" — notify the parents once per budget day.
+            // `firedThresholds` already dedupes, so this fires at most once per expiry.
+            if threshold == 0 { sendExpiryMessage() }
             fired.insert(threshold)
         }
         engine.state.firedThresholds = fired.sorted()
+    }
+
+    /// iMessage the parents that today's budget is spent, with a compressed usage summary.
+    private func sendExpiryMessage() {
+        let handles = settings.parentHandles
+        guard !handles.isEmpty else { return }
+        messenger.send(expiryMessageBody(test: false), to: handles)
+    }
+
+    /// The expiry-notification text. `test` prefixes "(test)" so a manual test send from
+    /// Settings is distinguishable from the real thing.
+    private func expiryMessageBody(test: Bool) -> String {
+        let today = sessionsIncludingInFlight()
+            .filter { engine.boundary.dayKey(for: $0.start) == engine.state.dayKey }
+        let limit = AppModel.format(seconds: settings.dailyLimitSeconds)
+        let prefix = test ? "(test) " : ""
+        return "\(prefix)Limit reached — \(settings.targetUsername) has used up today's "
+            + "screen-time budget (\(limit)).\n\n"
+            + UsageSummary.brief(today)
+    }
+
+    /// Send a test copy of the expiry message to `handles`. Used by Settings to trigger the
+    /// macOS Automation permission prompt and confirm delivery before relying on it.
+    func sendTestMessage(to handles: [String]) {
+        messenger.send(expiryMessageBody(test: true), to: handles)
     }
 
     // MARK: Usage logging

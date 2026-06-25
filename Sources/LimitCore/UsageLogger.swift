@@ -113,6 +113,21 @@ public struct DailyUsage: Identifiable, Equatable {
     }
 }
 
+/// A run of active use, formed by merging sessions separated by only a small gap. Spans
+/// from the first sub-session's start to the last's end; `idleSeconds` is the total of the
+/// (sub-threshold) gaps swallowed inside it.
+public struct UsageBlock: Equatable {
+    public var start: Date
+    public var end: Date
+    public var idleSeconds: Int
+
+    public init(start: Date, end: Date, idleSeconds: Int) {
+        self.start = start
+        self.end = end
+        self.idleSeconds = idleSeconds
+    }
+}
+
 public enum UsageSummary {
     /// Group sessions into per-budget-day totals (newest day first). A session is
     /// attributed to the budget day of its start instant, matching how the limit is spent.
@@ -126,5 +141,66 @@ public enum UsageSummary {
         return totals
             .map { DailyUsage(dayKey: $0.key, totalSeconds: $0.value.seconds, sessionCount: $0.value.count) }
             .sorted { $0.dayKey > $1.dayKey }
+    }
+
+    /// Merge sessions (oldest first) into blocks, collapsing any gap `<= mergeGap` into the
+    /// preceding block and accumulating it as idle time. Overlapping/zero-length records are
+    /// folded in too. Empty/degenerate records are dropped.
+    public static func blocks(_ records: [UsageLogger.Record], mergeGap: TimeInterval) -> [UsageBlock] {
+        let sorted = records.filter { $0.end > $0.start }.sorted { $0.start < $1.start }
+        var result: [UsageBlock] = []
+        for r in sorted {
+            guard var last = result.last else {
+                result.append(UsageBlock(start: r.start, end: r.end, idleSeconds: 0))
+                continue
+            }
+            let gap = r.start.timeIntervalSince(last.end)
+            if gap <= mergeGap {
+                last.end = max(last.end, r.end)
+                if gap > 0 { last.idleSeconds += Int(gap.rounded()) }
+                result[result.count - 1] = last
+            } else {
+                result.append(UsageBlock(start: r.start, end: r.end, idleSeconds: 0))
+            }
+        }
+        return result
+    }
+
+    /// A compact, human-readable usage summary suitable for an iMessage body, e.g.
+    ///
+    ///     Usage:
+    ///     10:00 -- 10:20 (with 5 minute idle time)
+    ///     11:00 -- 13:00 (with 30 minute idle time)
+    ///     14:30 -- 14:45
+    ///
+    /// A log made of many tiny bursts would print one line each, so the merge gap is widened
+    /// (along a fixed ladder) until the block count fits `maxLines` — short logs stay
+    /// detailed, long ones compress, and the largest gap always collapses everything.
+    public static func brief(_ records: [UsageLogger.Record],
+                             maxLines: Int = 12,
+                             timeZone: TimeZone = .current) -> String {
+        let sorted = records.filter { $0.end > $0.start }.sorted { $0.start < $1.start }
+        guard !sorted.isEmpty else { return "Usage: none" }
+
+        let ladder: [TimeInterval] = [60, 120, 300, 600, 900, 1800, 3600, 7200, 14400, 86400]
+        var chosen = blocks(sorted, mergeGap: ladder.last!)
+        for gap in ladder {
+            chosen = blocks(sorted, mergeGap: gap)
+            if chosen.count <= maxLines { break }
+        }
+
+        let fmt = DateFormatter()
+        fmt.dateFormat = "HH:mm"
+        fmt.timeZone = timeZone
+        fmt.locale = Locale(identifier: "en_US_POSIX")
+
+        var lines = ["Usage:"]
+        for block in chosen {
+            var line = "\(fmt.string(from: block.start)) -- \(fmt.string(from: block.end))"
+            let idleMinutes = (block.idleSeconds + 30) / 60
+            if idleMinutes >= 1 { line += " (with \(idleMinutes) minute idle time)" }
+            lines.append(line)
+        }
+        return lines.joined(separator: "\n")
     }
 }

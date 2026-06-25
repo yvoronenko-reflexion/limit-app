@@ -60,13 +60,17 @@ private struct UnlockView: View {
     @State private var error = ""
     /// Seconds of brute-force cooldown remaining after a wrong PIN; >0 disables entry.
     @State private var cooldown = 0
+    @FocusState private var pinFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Label("Enter parent PIN", systemImage: "key.fill")
                 .font(.headline)
                 .foregroundStyle(.tint)
-            SecureField("PIN", text: $pin).onSubmit(attempt).disabled(cooldown > 0)
+            SecureField("PIN", text: $pin)
+                .focused($pinFocused)
+                .onSubmit(attempt)
+                .disabled(cooldown > 0)
             if cooldown > 0 {
                 Text("Too many tries — wait \(cooldown)s.").font(.caption).foregroundStyle(.red)
             } else if !error.isEmpty {
@@ -74,6 +78,8 @@ private struct UnlockView: View {
             }
             Button("Unlock", action: attempt).disabled(pin.isEmpty || cooldown > 0)
         }
+        // Focus the field as soon as the dialog appears so the parent can just type.
+        .onAppear { DispatchQueue.main.async { pinFocused = true } }
     }
 
     private func attempt() {
@@ -101,6 +107,7 @@ private struct SettingsFormView: View {
     @State private var confirmPIN = ""
     @State private var pinError: String?
     @State private var saved = false
+    @State private var testSent = false
 
     init(model: AppModel) {
         self.model = model
@@ -143,7 +150,19 @@ private struct SettingsFormView: View {
             } header: { Label("Enforcement", systemImage: "lock.shield.fill") }
             Section {
                 TextField("phone/email, comma-separated", text: $handlesText)
-            } header: { Label("Parents' iMessage handles (used in a later version)", systemImage: "message.fill") }
+                Text("Texted once a day, when the budget runs out, with a usage summary. Requires this Mac to be signed into iMessage and to allow Limit to control Messages.")
+                    .font(.caption).foregroundStyle(.secondary)
+                HStack {
+                    Button { sendTest() } label: { Label("Send test iMessage", systemImage: "paperplane.fill") }
+                        .disabled(parsedHandles.isEmpty)
+                    if testSent {
+                        Label("Sent — check Messages", systemImage: "checkmark.circle.fill")
+                            .font(.caption).foregroundStyle(.green)
+                    }
+                }
+                Text("Sends the expiry message (marked “(test)”) to the handles above. The first send prompts macOS to let Limit control Messages — allow it so real alerts go through.")
+                    .font(.caption).foregroundStyle(.secondary)
+            } header: { Label("Parents' iMessage handles", systemImage: "message.fill") }
             Section {
                 TextField("username", text: $draft.targetUsername)
             } header: { Label("Target macOS user", systemImage: "person.fill") }
@@ -174,6 +193,20 @@ private struct SettingsFormView: View {
         .frame(minHeight: 560)
     }
 
+    /// Handles parsed from the (possibly unsaved) text field, so a test can be sent before
+    /// the form is saved.
+    private var parsedHandles: [String] {
+        handlesText
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+    }
+
+    private func sendTest() {
+        model.sendTestMessage(to: parsedHandles)
+        testSent = true
+    }
+
     private func save() {
         if changePIN {
             guard newPIN.count >= 4 else { pinError = "Use at least 4 characters."; return }
@@ -181,10 +214,7 @@ private struct SettingsFormView: View {
         }
 
         var updated = draft
-        updated.parentHandles = handlesText
-            .split(separator: ",")
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
+        updated.parentHandles = parsedHandles
         model.updateSettings(updated)
 
         if changePIN {

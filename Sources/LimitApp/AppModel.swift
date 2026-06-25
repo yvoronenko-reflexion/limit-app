@@ -145,6 +145,22 @@ final class AppModel: ObservableObject {
 
     var usedSeconds: Int { max(0, settings.dailyLimitSeconds - engine.state.remainingSeconds) }
 
+    /// All logged sessions, newest first (the file is written oldest-first).
+    func usageSessions() -> [UsageLogger.Record] {
+        // Close the in-flight session first so today's history isn't missing the
+        // current stretch of use.
+        if let start = openSessionStart, Date() > start {
+            logger.append(start: start, end: Date())
+            openSessionStart = Date()
+        }
+        return logger.load().reversed()
+    }
+
+    /// Per-budget-day usage totals, newest day first.
+    func dailyUsage() -> [DailyUsage] {
+        UsageSummary.byDay(logger.load(), boundary: engine.boundary)
+    }
+
     func updateSettings(_ new: Settings) {
         settings = new
         store.saveSettings(new)

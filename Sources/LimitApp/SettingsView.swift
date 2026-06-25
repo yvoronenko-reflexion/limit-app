@@ -87,6 +87,7 @@ private struct SettingsFormView: View {
     @State private var changePIN = false
     @State private var newPIN = ""
     @State private var saved = false
+    @State private var showingLogs = false
 
     init(model: AppModel) {
         self.model = model
@@ -121,6 +122,11 @@ private struct SettingsFormView: View {
                 TextField("username", text: $draft.targetUsername)
             } header: { Label("Target macOS user", systemImage: "person.fill") }
             Section {
+                Button { showingLogs = true } label: {
+                    Label("View usage history…", systemImage: "chart.bar.fill")
+                }
+            } header: { Label("Usage", systemImage: "chart.bar.doc.horizontal.fill") }
+            Section {
                 Toggle("Change PIN", isOn: $changePIN)
                 if changePIN {
                     SecureField("New PIN (4+ chars)", text: $newPIN)
@@ -136,6 +142,14 @@ private struct SettingsFormView: View {
         }
         .formStyle(.grouped)
         .frame(minHeight: 560)
+        .sheet(isPresented: $showingLogs) {
+            VStack(spacing: 0) {
+                UsageLogView(model: model)
+                Button("Done") { showingLogs = false }
+                    .keyboardShortcut(.defaultAction)
+                    .padding(.bottom, 16)
+            }
+        }
     }
 
     private func save() {

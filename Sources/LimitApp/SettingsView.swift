@@ -58,24 +58,36 @@ private struct UnlockView: View {
     @Binding var unlocked: Bool
     @State private var pin = ""
     @State private var error = ""
+    /// Seconds of brute-force cooldown remaining after a wrong PIN; >0 disables entry.
+    @State private var cooldown = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Label("Enter parent PIN", systemImage: "key.fill")
                 .font(.headline)
                 .foregroundStyle(.tint)
-            SecureField("PIN", text: $pin).onSubmit(attempt)
-            if !error.isEmpty { Text(error).font(.caption).foregroundStyle(.red) }
-            Button("Unlock", action: attempt).disabled(pin.isEmpty)
+            SecureField("PIN", text: $pin).onSubmit(attempt).disabled(cooldown > 0)
+            if cooldown > 0 {
+                Text("Too many tries — wait \(cooldown)s.").font(.caption).foregroundStyle(.red)
+            } else if !error.isEmpty {
+                Text(error).font(.caption).foregroundStyle(.red)
+            }
+            Button("Unlock", action: attempt).disabled(pin.isEmpty || cooldown > 0)
         }
     }
 
     private func attempt() {
+        guard cooldown == 0 else { return }
         if model.verifyPIN(pin) {
             unlocked = true
         } else {
             error = "Incorrect PIN."
             pin = ""
+            cooldown = 5
+            Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { timer in
+                cooldown -= 1
+                if cooldown <= 0 { timer.invalidate() }
+            }
         }
     }
 }
@@ -86,8 +98,9 @@ private struct SettingsFormView: View {
     @State private var handlesText: String
     @State private var changePIN = false
     @State private var newPIN = ""
+    @State private var confirmPIN = ""
+    @State private var pinError: String?
     @State private var saved = false
-    @State private var showingLogs = false
 
     init(model: AppModel) {
         self.model = model
@@ -102,6 +115,19 @@ private struct SettingsFormView: View {
                         value: $draft.dailyLimitSeconds,
                         in: 15 * 60 ... 12 * 60 * 60, step: 15 * 60)
             } header: { Label("Daily limit", systemImage: "clock.fill") }
+            Section {
+                HStack {
+                    Text("Remaining today")
+                    Spacer()
+                    Text(AppModel.format(seconds: model.remainingSeconds)).monospacedDigit()
+                }
+                HStack {
+                    Button("+15 min") { model.extend(by: 15 * 60) }
+                    Button("+30 min") { model.extend(by: 30 * 60) }
+                }
+                Text("Adds time to today only — doesn't change the daily limit. Logged as an extension in usage history.")
+                    .font(.caption).foregroundStyle(.secondary)
+            } header: { Label("Today's time", systemImage: "plus.circle.fill") }
             Section {
                 Stepper("Hour: \(draft.resetHour)", value: $draft.resetHour, in: 0 ... 23)
                 Stepper("Minute: \(draft.resetMinute)", value: $draft.resetMinute, in: 0 ... 59, step: 5)
@@ -122,14 +148,13 @@ private struct SettingsFormView: View {
                 TextField("username", text: $draft.targetUsername)
             } header: { Label("Target macOS user", systemImage: "person.fill") }
             Section {
-                Button { showingLogs = true } label: {
-                    Label("View usage history…", systemImage: "chart.bar.fill")
-                }
-            } header: { Label("Usage", systemImage: "chart.bar.doc.horizontal.fill") }
-            Section {
                 Toggle("Change PIN", isOn: $changePIN)
                 if changePIN {
                     SecureField("New PIN (4+ chars)", text: $newPIN)
+                    SecureField("Confirm new PIN", text: $confirmPIN)
+                    if let pinError {
+                        Text(pinError).font(.caption).foregroundStyle(.red)
+                    }
                 }
             } header: { Label("Parent PIN", systemImage: "key.fill") }
             HStack {
@@ -142,17 +167,14 @@ private struct SettingsFormView: View {
         }
         .formStyle(.grouped)
         .frame(minHeight: 560)
-        .sheet(isPresented: $showingLogs) {
-            VStack(spacing: 0) {
-                UsageLogView(model: model)
-                Button("Done") { showingLogs = false }
-                    .keyboardShortcut(.defaultAction)
-                    .padding(.bottom, 16)
-            }
-        }
     }
 
     private func save() {
+        if changePIN {
+            guard newPIN.count >= 4 else { pinError = "Use at least 4 characters."; return }
+            guard newPIN == confirmPIN else { pinError = "PINs don't match."; return }
+        }
+
         var updated = draft
         updated.parentHandles = handlesText
             .split(separator: ",")
@@ -160,9 +182,11 @@ private struct SettingsFormView: View {
             .filter { !$0.isEmpty }
         model.updateSettings(updated)
 
-        if changePIN, newPIN.count >= 4 {
+        if changePIN {
             model.setPIN(newPIN)
             newPIN = ""
+            confirmPIN = ""
+            pinError = nil
             changePIN = false
         }
         saved = true

@@ -145,20 +145,31 @@ final class AppModel: ObservableObject {
 
     var usedSeconds: Int { max(0, settings.dailyLimitSeconds - engine.state.remainingSeconds) }
 
-    /// All logged sessions, newest first (the file is written oldest-first).
-    func usageSessions() -> [UsageLogger.Record] {
-        // Close the in-flight session first so today's history isn't missing the
-        // current stretch of use.
-        if let start = openSessionStart, Date() > start {
-            logger.append(start: start, end: Date())
-            openSessionStart = Date()
+    /// Logged sessions plus the in-flight one, oldest first. The current stretch of use is
+    /// surfaced as a *synthetic, non-persisted* record so the history reflects it without
+    /// fragmenting the log every time the UI reads it.
+    private func sessionsIncludingInFlight() -> [UsageLogger.Record] {
+        var sessions = logger.load()
+        if let start = openSessionStart {
+            let now = Date()
+            if now > start { sessions.append(UsageLogger.Record(start: start, end: now)) }
         }
-        return logger.load().reversed()
+        return sessions
+    }
+
+    /// All sessions, newest first, including the in-flight one.
+    func usageSessions() -> [UsageLogger.Record] {
+        sessionsIncludingInFlight().reversed()
     }
 
     /// Per-budget-day usage totals, newest day first.
     func dailyUsage() -> [DailyUsage] {
-        UsageSummary.byDay(logger.load(), boundary: engine.boundary)
+        UsageSummary.byDay(sessionsIncludingInFlight(), boundary: engine.boundary)
+    }
+
+    /// All logged parent-granted extensions, newest first.
+    func usageExtensions() -> [UsageLogger.Extension] {
+        logger.loadExtensions().reversed()
     }
 
     func updateSettings(_ new: Settings) {
@@ -176,6 +187,7 @@ final class AppModel: ObservableObject {
     }
 
     func extend(by seconds: Int) {
+        logger.appendExtension(at: Date(), addedSeconds: seconds)
         engine.extend(by: seconds)
         remainingSeconds = engine.state.remainingSeconds
         updateMenuTitle()

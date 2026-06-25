@@ -21,7 +21,16 @@ struct LimitMenuBarApp: App {
         Settings {
             SettingsView(model: model)
         }
+
+        // Usage history lives in its own window (no PIN) so it's reachable straight
+        // from the menu bar alongside Settings.
+        Window("Usage History", id: Self.usageWindowID) {
+            UsageLogView(model: model)
+        }
+        .windowResizability(.contentSize)
     }
+
+    static let usageWindowID = "usage-history"
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {

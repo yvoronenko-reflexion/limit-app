@@ -1,12 +1,36 @@
 import Foundation
 
-/// Append-only log of active-use sessions (start, end, duration) as JSON Lines.
+/// Append-only log of active-use sessions and parent-granted time extensions as JSON
+/// Lines. Session lines have no `kind`; extension lines carry `"kind":"extension"`, so the
+/// two are distinguishable and old session-only logs keep decoding unchanged.
 public final class UsageLogger {
     public struct Record: Codable, Equatable {
         public let start: Date
         public let end: Date
         public let durationSeconds: Int
+
+        public init(start: Date, end: Date) {
+            self.start = start
+            self.end = end
+            self.durationSeconds = max(0, Int(end.timeIntervalSince(start)))
+        }
     }
+
+    /// A parent-granted budget extension (the "+15/+30/+60 min" actions at the lock).
+    public struct Extension: Codable, Equatable {
+        public let kind: String
+        public let at: Date
+        public let addedSeconds: Int
+
+        public init(at: Date, addedSeconds: Int) {
+            self.kind = "extension"
+            self.at = at
+            self.addedSeconds = addedSeconds
+        }
+    }
+
+    /// Used to peek a line's `kind` discriminator before decoding it concretely.
+    private struct Kind: Decodable { let kind: String? }
 
     private let url: URL
     private let encoder: JSONEncoder
@@ -18,22 +42,48 @@ public final class UsageLogger {
     }
 
     public func append(start: Date, end: Date) {
-        let record = Record(start: start, end: end,
-                            durationSeconds: max(0, Int(end.timeIntervalSince(start))))
-        guard var line = try? encoder.encode(record) else { return }
+        write(Record(start: start, end: end))
+    }
+
+    public func appendExtension(at: Date, addedSeconds: Int) {
+        write(Extension(at: at, addedSeconds: max(0, addedSeconds)))
+    }
+
+    private func write<T: Encodable>(_ value: T) {
+        guard var line = try? encoder.encode(value) else { return }
         line.append(0x0A) // newline
         appendData(line)
     }
 
-    /// Read every logged session, oldest first. Malformed lines are skipped so a single
-    /// bad record can't hide the rest of the history.
+    /// Read every logged session, oldest first. Extension lines and malformed lines are
+    /// skipped so a single bad record can't hide the rest of the history.
     public func load() -> [Record] {
-        guard let data = try? Data(contentsOf: url) else { return [] }
+        decodeLines().sessions
+    }
+
+    /// Read every logged extension, oldest first.
+    public func loadExtensions() -> [Extension] {
+        decodeLines().extensions
+    }
+
+    /// Decode the whole log once into its two record kinds (oldest first).
+    private func decodeLines() -> (sessions: [Record], extensions: [Extension]) {
+        guard let data = try? Data(contentsOf: url) else { return ([], []) }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        return data.split(separator: 0x0A).compactMap { line in
-            try? decoder.decode(Record.self, from: Data(line))
+        var sessions: [Record] = []
+        var extensions: [Extension] = []
+        for line in data.split(separator: 0x0A) {
+            let bytes = Data(line)
+            if (try? decoder.decode(Kind.self, from: bytes))?.kind == "extension" {
+                if let ext = try? decoder.decode(Extension.self, from: bytes) {
+                    extensions.append(ext)
+                }
+            } else if let record = try? decoder.decode(Record.self, from: bytes) {
+                sessions.append(record)
+            }
         }
+        return (sessions, extensions)
     }
 
     private func appendData(_ data: Data) {

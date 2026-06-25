@@ -12,6 +12,8 @@ struct LockOverlayView: View {
 
     @State private var pin = ""
     @State private var error = ""
+    /// Seconds of brute-force cooldown remaining after a wrong PIN; >0 disables entry.
+    @State private var cooldown = 0
 
     /// Extension presets offered to the parent, in minutes.
     private let presets = [15, 30, 60]
@@ -73,9 +75,13 @@ struct LockOverlayView: View {
                 SecureField("Parent PIN", text: $pin)
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 220)
+                    .disabled(cooldown > 0)
                     .onSubmit { grant(minutes: presets.first ?? 15) }
 
-                if !error.isEmpty {
+                if cooldown > 0 {
+                    Text("Too many tries — wait \(cooldown)s.")
+                        .font(.caption).foregroundStyle(.red)
+                } else if !error.isEmpty {
                     Text(error).font(.caption).foregroundStyle(.red)
                 }
 
@@ -85,7 +91,7 @@ struct LockOverlayView: View {
                             Label("\(mins) min", systemImage: "plus.circle.fill")
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(pin.isEmpty)
+                        .disabled(pin.isEmpty || cooldown > 0)
                     }
                 }
             }
@@ -101,13 +107,24 @@ struct LockOverlayView: View {
     }
 
     private func grant(minutes: Int) {
+        guard cooldown == 0 else { return }
         guard model.verifyPIN(pin) else {
             error = "That PIN didn't match. Try again."
             pin = ""
+            startCooldown()
             return
         }
         pin = ""
         error = ""
         model.extend(by: minutes * 60)
+    }
+
+    /// Throttle brute-forcing: disable entry for 5 seconds, counting down once per second.
+    private func startCooldown() {
+        cooldown = 5
+        Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { timer in
+            cooldown -= 1
+            if cooldown <= 0 { timer.invalidate() }
+        }
     }
 }

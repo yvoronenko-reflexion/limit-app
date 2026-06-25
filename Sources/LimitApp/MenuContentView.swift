@@ -4,6 +4,7 @@ import AppKit
 struct MenuContentView: View {
     @ObservedObject var model: AppModel
     @Environment(\.openSettings) private var openSettings
+    @Environment(\.openWindow) private var openWindow
 
     private var mood: TimeMood {
         .make(remaining: model.remainingSeconds, limit: model.settings.dailyLimitSeconds)
@@ -37,6 +38,11 @@ struct MenuContentView: View {
 
             Divider()
 
+            Button { showUsageHistory() } label: {
+                Label("Usage History…", systemImage: "chart.bar.fill")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
             Button { showSettings() } label: {
                 Label("Settings…", systemImage: "gearshape.fill")
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -64,5 +70,12 @@ struct MenuContentView: View {
         // popover has closed.
         NSApp.activate(ignoringOtherApps: true)
         openSettings()
+    }
+
+    private func showUsageHistory() {
+        // Same activation dance as settings: a menu-bar app must come forward first
+        // or the window opens behind everything.
+        NSApp.activate(ignoringOtherApps: true)
+        openWindow(id: LimitMenuBarApp.usageWindowID)
     }
 }

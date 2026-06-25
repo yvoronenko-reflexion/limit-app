@@ -9,6 +9,7 @@ struct UsageLogView: View {
 
     @State private var days: [DailyUsage] = []
     @State private var sessions: [UsageLogger.Record] = []
+    @State private var extensions: [UsageLogger.Extension] = []
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -29,7 +30,7 @@ struct UsageLogView: View {
                 Spacer()
             } else {
                 List(days) { day in
-                    DayRow(day: day, sessions: sessionsFor(day))
+                    DayRow(day: day, entries: entriesFor(day))
                 }
                 .listStyle(.inset)
             }
@@ -41,11 +42,19 @@ struct UsageLogView: View {
 
     private func reload() {
         sessions = model.usageSessions()
+        extensions = model.usageExtensions()
         days = model.dailyUsage()
     }
 
-    private func sessionsFor(_ day: DailyUsage) -> [UsageLogger.Record] {
-        sessions.filter { boundaryKey($0.start) == day.dayKey }
+    /// Sessions and extensions for a budget day, interleaved newest-first.
+    private func entriesFor(_ day: DailyUsage) -> [DayEntry] {
+        let s = sessions
+            .filter { boundaryKey($0.start) == day.dayKey }
+            .map(DayEntry.session)
+        let e = extensions
+            .filter { boundaryKey($0.at) == day.dayKey }
+            .map(DayEntry.extension)
+        return (s + e).sorted { $0.date > $1.date }
     }
 
     private func boundaryKey(_ date: Date) -> String {
@@ -54,19 +63,52 @@ struct UsageLogView: View {
     }
 }
 
+/// One row in the usage list: a session (start–end + duration) or a parent-granted
+/// extension. Both carry a timestamp so the day's entries can be sorted together.
+enum DayEntry: Identifiable {
+    case session(UsageLogger.Record)
+    case `extension`(UsageLogger.Extension)
+
+    var date: Date {
+        switch self {
+        case .session(let r): return r.start
+        case .extension(let e): return e.at
+        }
+    }
+
+    var id: String {
+        switch self {
+        case .session(let r): return "s-\(r.start.timeIntervalSince1970)"
+        case .extension(let e): return "x-\(e.at.timeIntervalSince1970)"
+        }
+    }
+}
+
 private struct DayRow: View {
     let day: DailyUsage
-    let sessions: [UsageLogger.Record]
+    let entries: [DayEntry]
 
     var body: some View {
         DisclosureGroup {
-            ForEach(sessions) { record in
-                HStack {
-                    Text("\(Self.time.string(from: record.start))–\(Self.time.string(from: record.end))")
-                        .font(.caption).foregroundStyle(.secondary)
-                    Spacer()
-                    Text(AppModel.format(seconds: record.durationSeconds))
-                        .font(.caption).monospacedDigit()
+            ForEach(entries) { entry in
+                switch entry {
+                case .session(let record):
+                    HStack {
+                        Text("\(Self.time.string(from: record.start))–\(Self.time.string(from: record.end))")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Text(AppModel.format(seconds: record.durationSeconds))
+                            .font(.caption).monospacedDigit()
+                    }
+                case .extension(let ext):
+                    HStack {
+                        Label(Self.time.string(from: ext.at), systemImage: "plus.circle.fill")
+                            .font(.caption).foregroundStyle(.green)
+                        Spacer()
+                        Text("+\(ext.addedSeconds / 60) min")
+                            .font(.caption.weight(.medium)).monospacedDigit()
+                            .foregroundStyle(.green)
+                    }
                 }
             }
         } label: {
@@ -98,8 +140,4 @@ private struct DayRow: View {
         out.timeStyle = .none
         return out.string(from: date)
     }
-}
-
-extension UsageLogger.Record: Identifiable {
-    public var id: Date { start }
 }

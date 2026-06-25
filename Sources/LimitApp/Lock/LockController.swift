@@ -43,11 +43,21 @@ final class LockController {
         guard !isLocked, model != nil else { return }
 
         savedPresentationOptions = NSApp.presentationOptions
-        NSApp.setActivationPolicy(.regular)
+
+        // Place the shield windows on the *currently active* Space first — including
+        // another app's native full-screen Space — via `.canJoinAllSpaces` at the
+        // shielding level. We deliberately stay an accessory (LSUIElement) app and do
+        // NOT flip to `.regular`: doing so makes the window server reassign our windows
+        // to the app's own Space (the desktop behind the full-screen app), which is why
+        // the overlay used to appear only after the child left full-screen mode.
+        buildWindows()
+
+        // Become the active app so the PIN field can receive keystrokes, and clamp the
+        // environment (no dock/menu bar, no app-switch/force-quit). Accessory apps can
+        // activate and own a key window without switching to `.regular`.
         NSApp.activate(ignoringOtherApps: true)
         NSApp.presentationOptions = [.hideDock, .hideMenuBar, .disableProcessSwitching, .disableForceQuit]
 
-        buildWindows()
         installObservers()
     }
 
@@ -71,10 +81,13 @@ final class LockController {
             window.contentView = NSHostingView(
                 rootView: LockOverlayView(model: model, showsControls: isPrimary))
             window.setFrame(screen.frame, display: true)
+            // `orderFrontRegardless` (not `makeKeyAndOrderFront`) so the window lands on
+            // the active Space without forcing app activation — that activation is what
+            // pulled the overlay out of another app's full-screen Space. The primary
+            // window is made key once we activate in `present()`/`reassert()`.
+            window.orderFrontRegardless()
             if isPrimary {
-                window.makeKeyAndOrderFront(nil)
-            } else {
-                window.orderFrontRegardless()
+                window.makeKey()
             }
             windows.append(window)
         }
@@ -89,8 +102,8 @@ final class LockController {
             NSApp.presentationOptions = saved
             savedPresentationOptions = nil
         }
-        // Back to a menu-bar-only accessory app.
-        NSApp.setActivationPolicy(.accessory)
+        // The app stayed an accessory (LSUIElement) throughout, so there's no activation
+        // policy to restore here.
     }
 
     // MARK: Re-assertion

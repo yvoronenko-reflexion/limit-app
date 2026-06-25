@@ -16,6 +16,9 @@ public struct Settings: Codable, Equatable {
     /// macOS short username this instance limits (informational in v1; the app
     /// runs inside that user's session).
     public var targetUsername: String
+    /// v2 enforcement: when true, the budget reaching 0 raises the parent-PIN lock
+    /// overlay. Default false so the app stays a passive timer until a parent opts in.
+    public var enforcementEnabled: Bool
 
     public init(
         dailyLimitSeconds: Int = 2 * 60 * 60,
@@ -24,7 +27,8 @@ public struct Settings: Codable, Equatable {
         idleThresholdSeconds: Int = 60,
         parentPIN: ParentPIN.Stored? = nil,
         parentHandles: [String] = [],
-        targetUsername: String = NSUserName()
+        targetUsername: String = NSUserName(),
+        enforcementEnabled: Bool = false
     ) {
         self.dailyLimitSeconds = dailyLimitSeconds
         self.resetHour = resetHour
@@ -33,6 +37,23 @@ public struct Settings: Codable, Equatable {
         self.parentPIN = parentPIN
         self.parentHandles = parentHandles
         self.targetUsername = targetUsername
+        self.enforcementEnabled = enforcementEnabled
+    }
+
+    // Resilient decoding: every field falls back to its default when absent, so a
+    // settings.json written by an older build (missing newer keys) still loads. The
+    // encoder stays synthesized.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = Settings()
+        dailyLimitSeconds = try c.decodeIfPresent(Int.self, forKey: .dailyLimitSeconds) ?? d.dailyLimitSeconds
+        resetHour = try c.decodeIfPresent(Int.self, forKey: .resetHour) ?? d.resetHour
+        resetMinute = try c.decodeIfPresent(Int.self, forKey: .resetMinute) ?? d.resetMinute
+        idleThresholdSeconds = try c.decodeIfPresent(Int.self, forKey: .idleThresholdSeconds) ?? d.idleThresholdSeconds
+        parentPIN = try c.decodeIfPresent(ParentPIN.Stored.self, forKey: .parentPIN) ?? d.parentPIN
+        parentHandles = try c.decodeIfPresent([String].self, forKey: .parentHandles) ?? d.parentHandles
+        targetUsername = try c.decodeIfPresent(String.self, forKey: .targetUsername) ?? d.targetUsername
+        enforcementEnabled = try c.decodeIfPresent(Bool.self, forKey: .enforcementEnabled) ?? d.enforcementEnabled
     }
 }
 

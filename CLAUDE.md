@@ -7,8 +7,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 A native macOS menu-bar app (Swift + SwiftUI) that enforces a single **total daily
 active-use budget** for a child's macOS user, as a simpler replacement for built-in
 Screen Time. See `REQUIREMENTS.md` for the full spec and the v1/v2/v3 milestones. v1
-(timer, detection, menu bar, warnings, logging, PIN-gated settings) is implemented;
-enforcement (lock overlay) and iMessage are later phases.
+(timer, detection, menu bar, warnings, logging, PIN-gated settings) and v2 (opt-in
+parent-PIN lock overlay at expiry, PIN-gated extension, LaunchAgent + root-watchdog
+tamper-resistance) are implemented; iMessage (v3) is a later phase.
 
 ## Toolchain note (important)
 
@@ -65,7 +66,7 @@ Two modules (so the logic is unit-testable headlessly, without a GUI host):
     Accessibility permission), `WarningScheduler` (which thresholds are due),
     `UsageLogger` (append-only JSONL sessions), `Settings`/`DayState`, `SettingsStore` +
     `JSONFile` + `AppPaths` (persistence), `ParentPIN` (salted-hash gate),
-    `NotificationManager`.
+    `NotificationManager`, `Enforcement` (pure `shouldLock(remaining:enabled:)` decision).
 - **`LimitApp`** (the app) — SwiftUI + the coordinator:
   - `AppModel` — the **heartbeat**. A 1 Hz `Timer` drives `tick()`: roll the day over,
     sample activity, decrement only when active, fire due warnings, open/close usage
@@ -73,6 +74,18 @@ Two modules (so the logic is unit-testable headlessly, without a GUI host):
     `LimitCore` pieces and publishes observable state.
   - `LimitAppApp` (`@main`, `MenuBarExtra` + `Settings` scenes), `AppDelegate`
     (start/flush), `MenuContentView`, `SettingsView` (PIN-gated).
+  - **(v2) `Lock/LockController` + `Lock/LockOverlayView`** — the enforcement overlay.
+    Each `tick()` calls `Enforcement.shouldLock(...)`; when true, `LockController` puts a
+    borderless shielding window (`CGShieldingWindowLevel()`) on every screen, sets kiosk
+    `presentationOptions` (hide dock/menu bar, disable process-switch/force-quit), and
+    re-asserts key/front on resign or display change. The primary screen's overlay hosts
+    the parent-PIN field + +15/+30/+60-min extend buttons (→ `model.verifyPIN`/`extend`).
+    Dismisses automatically once the budget goes positive (extension or daily rollover).
+- **tamper-resistance (`scripts/`)** — `install.sh` (run once with `sudo <child-user>`)
+  copies `Limit.app` to `/Applications` and installs a root-owned `KeepAlive` LaunchAgent
+  (relaunches the app if quit/killed) plus a root LaunchDaemon running `watchdog.sh` every
+  60s (re-bootstraps the agent if booted out of the GUI session). `uninstall.sh` reverses
+  it. These defend against *in-session* evasion only — not admin/Recovery/state-file edits.
 
 Key design decisions:
 - **Warnings fire reactively** as the budget crosses 300/180/60/0s, *not* pre-scheduled by

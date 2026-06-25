@@ -116,8 +116,14 @@ the Mac is genuinely being used by that user.
 - **v1 (implemented):** budget timer, active-use detection, menu-bar display, warnings,
   usage logging, PIN-gated settings. Runs in the child's session; no forced enforcement —
   at 0 it notifies and shows "expired".
-- **v2:** parent-PIN lock overlay at expiry, PIN extension, tamper-resistance via a
-  per-user `KeepAlive` LaunchAgent + a root LaunchDaemon watchdog (installed with `sudo`).
+- **v2 (implemented):** parent-PIN lock overlay at expiry (opt-in via an *Enforcement*
+  setting, default off), PIN-gated +15/+30/+60-min extension from the overlay, and
+  tamper-resistance via a per-user `KeepAlive` LaunchAgent + a root LaunchDaemon watchdog
+  (installed with `sudo`; see `scripts/`). **Residual tamper scope:** the overlay +
+  watchdog defend against in-session evasion (quitting/killing the app, `launchctl
+  bootout`). They do **not** defend against an admin account, Recovery mode, or a user
+  editing the budget state file directly — fully authoritative state needs a privileged
+  helper that owns the budget (deferred to a later milestone).
 - **v3:** one-way iMessage notifications to parents via AppleScript → Messages.app.
 
 ---

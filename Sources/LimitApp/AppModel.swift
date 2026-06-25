@@ -26,6 +26,10 @@ final class AppModel: ObservableObject {
     private var openSessionStart: Date?
     private var ticksSinceSave = 0
 
+    /// v2 enforcement overlay. Created lazily (needs `self`); only touched on the main
+    /// thread from the tick / UI actions.
+    private lazy var lock = LockController(model: self)
+
     private init() {
         let store = SettingsStore()
         let settings = store.loadSettings()
@@ -86,8 +90,16 @@ final class AppModel: ObservableObject {
         statusText = snapshot.reason
         remainingSeconds = engine.state.remainingSeconds
         updateMenuTitle()
+        updateLock()
 
         persistState()
+    }
+
+    /// Show or hide the lock overlay to match the current budget + enforcement setting.
+    private func updateLock() {
+        lock.update(shouldLock: Enforcement.shouldLock(
+            remainingSeconds: engine.state.remainingSeconds,
+            enforcementEnabled: settings.enforcementEnabled))
     }
 
     private func fireDueWarnings() {
@@ -143,6 +155,7 @@ final class AppModel: ObservableObject {
         }
         remainingSeconds = engine.state.remainingSeconds
         updateMenuTitle()
+        updateLock()
         store.saveState(engine.state)
     }
 
@@ -150,6 +163,7 @@ final class AppModel: ObservableObject {
         engine.extend(by: seconds)
         remainingSeconds = engine.state.remainingSeconds
         updateMenuTitle()
+        updateLock()
         store.saveState(engine.state)
     }
 

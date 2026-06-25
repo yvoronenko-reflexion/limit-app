@@ -10,16 +10,38 @@ the foreground, and not idle).
 
 ## Status
 
-**v1** is implemented:
+**v1 + v2** are implemented:
 
 - Menu-bar countdown that ticks only during active use
 - 5 / 3 / 1-minute and "time's up" notifications
 - Usage logging (`start`, `end`, `duration`)
 - Configurable daily limit, reset time, and idle threshold
 - Parent-PIN–gated settings
+- **(v2)** Optional parent-PIN **lock overlay** at expiry, with PIN-gated
+  +15/+30/+60-min extension, plus tamper-resistance (KeepAlive LaunchAgent + root
+  watchdog) installed via `scripts/install.sh`
 
-Planned: **v2** parent-PIN lock screen at expiry + tamper-resistance; **v3** one-way
-iMessage notifications to parents. See [`REQUIREMENTS.md`](REQUIREMENTS.md).
+Planned: **v3** one-way iMessage notifications to parents. See
+[`REQUIREMENTS.md`](REQUIREMENTS.md).
+
+## Enabling enforcement (v2)
+
+Enforcement is **off by default** — the app is a passive timer until you opt in.
+
+1. In Settings (menu bar → Settings…, parent PIN required), turn on **"Lock the screen
+   when time runs out."**
+2. To stop the child from simply quitting the app, install the watchdog once as an admin:
+
+   ```sh
+   sudo ./scripts/install.sh <child-username>   # optionally pass /path/to/Limit.app
+   ```
+
+   This copies the app to `/Applications`, installs a root-owned `KeepAlive` LaunchAgent
+   and a root LaunchDaemon watchdog. Reverse with `sudo ./scripts/uninstall.sh <child-username>`.
+
+The overlay + watchdog stop in-session evasion (quitting/killing the app). They do **not**
+stop an admin account, Recovery mode, or direct edits to the budget file — see
+[`REQUIREMENTS.md`](REQUIREMENTS.md) for the full tamper scope.
 
 ## Build & run
 

@@ -102,6 +102,11 @@ private struct SettingsFormView: View {
                 Stepper("Pause after \(draft.idleThresholdSeconds)s of no input",
                         value: $draft.idleThresholdSeconds, in: 15 ... 600, step: 15)
             }
+            Section("Enforcement") {
+                Toggle("Lock the screen when time runs out", isOn: $draft.enforcementEnabled)
+                Text("Shows a full-screen overlay at 0 that only a parent can dismiss (by PIN). Install the watchdog (see scripts/) so quitting the app can't bypass it.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             Section("Parents' iMessage handles (used in a later version)") {
                 TextField("phone/email, comma-separated", text: $handlesText)
             }

@@ -3,6 +3,7 @@ import AppKit
 
 struct MenuContentView: View {
     @ObservedObject var model: AppModel
+    @Environment(\.openSettings) private var openSettings
 
     private var mood: TimeMood {
         .make(remaining: model.remainingSeconds, limit: model.settings.dailyLimitSeconds)
@@ -36,7 +37,7 @@ struct MenuContentView: View {
 
             Divider()
 
-            Button { openSettings() } label: {
+            Button { showSettings() } label: {
                 Label("Settings…", systemImage: "gearshape.fill")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -55,12 +56,13 @@ struct MenuContentView: View {
         "\(max(0, seconds) / 60) min"
     }
 
-    private func openSettings() {
+    private func showSettings() {
+        // A menu-bar (.accessory) app isn't active, so the Settings window can
+        // open behind everything else — activate first, then open. Using the
+        // SwiftUI openSettings action is reliable here; poking the responder
+        // chain via showSettingsWindow: silently does nothing once the menu-bar
+        // popover has closed.
         NSApp.activate(ignoringOtherApps: true)
-        if #available(macOS 14, *) {
-            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-        } else {
-            NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
-        }
+        openSettings()
     }
 }

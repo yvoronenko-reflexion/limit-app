@@ -18,7 +18,7 @@ struct SettingsView: View {
             }
         }
         .padding(20)
-        .frame(width: 400)
+        .frame(width: 460)
     }
 }
 
@@ -132,6 +132,7 @@ private struct SettingsFormView: View {
             }
         }
         .formStyle(.grouped)
+        .frame(minHeight: 560)
     }
 
     private func save() {

@@ -27,13 +27,45 @@ the foreground, and not idle).
 Planned: **v3** one-way iMessage notifications to parents. See
 [`REQUIREMENTS.md`](REQUIREMENTS.md).
 
+## Install (one command)
+
+On any Mac, install the app **and** its enforcement services with a single command —
+no Xcode, Homebrew, or source checkout needed. Replace `<child-username>` with the macOS
+account whose screen time you want to limit:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/yvoronenko-reflexion/limit-app/main/scripts/bootstrap.sh | sudo bash -s -- <child-username>
+```
+
+This downloads the latest prebuilt `Limit.app` from
+[Releases](https://github.com/yvoronenko-reflexion/limit-app/releases), copies it to
+`/Applications`, and installs the root-owned `KeepAlive` LaunchAgent + watchdog daemon.
+Pin a specific version with `LIMIT_VERSION=v0.1.0` in front of the command.
+
+Then open the app's Settings (menu bar → Settings…) to set the parent PIN and daily
+limit, and turn on **"Lock the screen when time runs out."**
+
+To uninstall: `sudo ./scripts/uninstall.sh <child-username>` (or grab `uninstall.sh`
+from the repo).
+
+### How releases are built
+
+Pushing a `v*` tag triggers `.github/workflows/release.yml`, which builds `Limit.app` on
+a macOS runner and publishes `limit-installer.zip` to a GitHub Release — that's the asset
+the one-command installer downloads:
+
+```sh
+git tag v0.1.0 && git push origin v0.1.0
+```
+
 ## Enabling enforcement (v2)
 
 Enforcement is **off by default** — the app is a passive timer until you opt in.
 
 1. In Settings (menu bar → Settings…, parent PIN required), turn on **"Lock the screen
    when time runs out."**
-2. To stop the child from simply quitting the app, install the watchdog once as an admin:
+2. The one-command installer above already installs the watchdog. If you built from source
+   instead, install it once as an admin:
 
    ```sh
    sudo ./scripts/install.sh <child-username>   # optionally pass /path/to/Limit.app

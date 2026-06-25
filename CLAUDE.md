@@ -86,6 +86,13 @@ Two modules (so the logic is unit-testable headlessly, without a GUI host):
   (relaunches the app if quit/killed) plus a root LaunchDaemon running `watchdog.sh` every
   60s (re-bootstraps the agent if booted out of the GUI session). `uninstall.sh` reverses
   it. These defend against *in-session* evasion only — not admin/Recovery/state-file edits.
+- **one-command install (`scripts/bootstrap.sh` + `.github/workflows/release.yml`)** — a
+  `v*` tag push builds `Limit.app` (Release) on a macOS CI runner and publishes
+  `limit-installer.zip` (app + `install.sh` + `watchdog.sh`) to a GitHub Release.
+  `bootstrap.sh` is the curl-pipe-to-`sudo bash` entrypoint: it downloads that asset,
+  strips the quarantine flag, and hands the extracted app to `install.sh`. Family Macs
+  install with one command and need no Xcode/Homebrew/checkout. Repo is public so no token
+  is needed; `LIMIT_VERSION`/`LIMIT_REPO` env vars override the tag/source.
 
 Key design decisions:
 - **Warnings fire reactively** as the budget crosses 300/180/60/0s, *not* pre-scheduled by

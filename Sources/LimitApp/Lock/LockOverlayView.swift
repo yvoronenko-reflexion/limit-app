@@ -1,9 +1,10 @@
 import SwiftUI
 
-/// The full-screen "time's up" overlay shown when the budget is exhausted. The child
-/// can't dismiss it; a parent unlocks (extends time) by entering the parent PIN and
-/// choosing how much time to grant. Only the primary screen shows the controls — the
-/// other screens just get the dimmed shield.
+/// The full-screen "all done for today" overlay shown when the budget is exhausted. It's
+/// deliberately warm and encouraging rather than a stern lockdown: a calm night-sky
+/// gradient, a friendly moon, and a "see you tomorrow" message. The child can't dismiss
+/// it; a grown-up can add time by entering the parent PIN and choosing how much. Only the
+/// primary screen shows the controls — the other screens just get the friendly backdrop.
 struct LockOverlayView: View {
     @ObservedObject var model: AppModel
     /// Whether this overlay instance owns the interactive controls (primary screen).
@@ -17,62 +18,91 @@ struct LockOverlayView: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.92).ignoresSafeArea()
+            LinearGradient(
+                colors: [Color(red: 0.18, green: 0.20, blue: 0.45),
+                         Color(red: 0.10, green: 0.12, blue: 0.28)],
+                startPoint: .top, endPoint: .bottom)
+                .ignoresSafeArea()
 
             if showsControls {
-                controls
-                    .frame(maxWidth: 420)
+                card
+                    .frame(maxWidth: 440)
                     .padding(40)
             } else {
-                Text("Time's up")
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.85))
+                friendlyBanner
             }
         }
     }
 
-    private var controls: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "hourglass.bottomhalf.filled")
-                .font(.system(size: 48))
-                .foregroundStyle(.white.opacity(0.9))
-
-            Text("Time's up for today")
-                .font(.system(size: 30, weight: .bold, design: .rounded))
+    private var friendlyBanner: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "moon.stars.fill")
+                .font(.system(size: 64))
+                .symbolRenderingMode(.multicolor)
+            Text("All done for today")
+                .font(.system(size: 32, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
+            Text("See you tomorrow! 🌙")
+                .font(.title3)
+                .foregroundStyle(.white.opacity(0.8))
+        }
+    }
 
-            Text("Screen time has run out. A parent can grant more time by entering the parent PIN.")
+    private var card: some View {
+        VStack(spacing: 18) {
+            Image(systemName: "moon.stars.fill")
+                .font(.system(size: 56))
+                .symbolRenderingMode(.multicolor)
+                .padding(.bottom, 2)
+
+            Text("All done for today!")
+                .font(.system(size: 30, weight: .bold, design: .rounded))
+
+            Text("Great job today — screen time is finished. See you tomorrow! 🌙")
                 .font(.callout)
                 .multilineTextAlignment(.center)
-                .foregroundStyle(.white.opacity(0.75))
+                .foregroundStyle(.secondary)
 
-            SecureField("Parent PIN", text: $pin)
-                .textFieldStyle(.roundedBorder)
-                .frame(maxWidth: 220)
-                .onSubmit { grant(minutes: presets.first ?? 15) }
+            Divider().padding(.vertical, 4)
 
-            if !error.isEmpty {
-                Text(error).font(.caption).foregroundStyle(.red)
-            }
+            VStack(spacing: 12) {
+                Label("Grown-up? You can add some time.", systemImage: "person.badge.key.fill")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
 
-            HStack(spacing: 12) {
-                ForEach(presets, id: \.self) { mins in
-                    Button("+\(mins) min") { grant(minutes: mins) }
+                SecureField("Parent PIN", text: $pin)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: 220)
+                    .onSubmit { grant(minutes: presets.first ?? 15) }
+
+                if !error.isEmpty {
+                    Text(error).font(.caption).foregroundStyle(.red)
+                }
+
+                HStack(spacing: 12) {
+                    ForEach(presets, id: \.self) { mins in
+                        Button { grant(minutes: mins) } label: {
+                            Label("\(mins) min", systemImage: "plus.circle.fill")
+                        }
                         .buttonStyle(.borderedProminent)
                         .disabled(pin.isEmpty)
+                    }
                 }
             }
 
-            Text("To change limits or the PIN, grant time first, then open Settings from the menu bar.")
+            Text("To change limits or the PIN, add time first, then open Settings from the menu bar.")
                 .font(.caption2)
-                .foregroundStyle(.white.opacity(0.5))
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
+        .padding(32)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .shadow(radius: 30)
     }
 
     private func grant(minutes: Int) {
         guard model.verifyPIN(pin) else {
-            error = "Incorrect PIN."
+            error = "That PIN didn't match. Try again."
             pin = ""
             return
         }

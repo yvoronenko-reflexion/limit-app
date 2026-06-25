@@ -31,8 +31,10 @@ private struct CreatePINView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Set a parent PIN").font(.headline)
-            Text("Required to open settings, and (in a later version) to unlock or extend time.")
+            Label("Set a parent PIN", systemImage: "lock.shield.fill")
+                .font(.headline)
+                .foregroundStyle(.tint)
+            Text("Required to open settings, and to unlock or add time when the day's screen time runs out.")
                 .font(.caption).foregroundStyle(.secondary)
             SecureField("New PIN (4+ digits)", text: $pin)
             SecureField("Confirm PIN", text: $confirm)
@@ -56,7 +58,9 @@ private struct UnlockView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Enter parent PIN").font(.headline)
+            Label("Enter parent PIN", systemImage: "key.fill")
+                .font(.headline)
+                .foregroundStyle(.tint)
             SecureField("PIN", text: $pin).onSubmit(attempt)
             if !error.isEmpty { Text(error).font(.caption).foregroundStyle(.red) }
             Button("Unlock", action: attempt).disabled(pin.isEmpty)
@@ -89,40 +93,41 @@ private struct SettingsFormView: View {
 
     var body: some View {
         Form {
-            Section("Daily limit") {
+            Section {
                 Stepper("\(draft.dailyLimitSeconds / 60) minutes",
                         value: $draft.dailyLimitSeconds,
                         in: 15 * 60 ... 12 * 60 * 60, step: 15 * 60)
-            }
-            Section("Daily reset time") {
+            } header: { Label("Daily limit", systemImage: "clock.fill") }
+            Section {
                 Stepper("Hour: \(draft.resetHour)", value: $draft.resetHour, in: 0 ... 23)
                 Stepper("Minute: \(draft.resetMinute)", value: $draft.resetMinute, in: 0 ... 59, step: 5)
-            }
-            Section("Idle pause") {
+            } header: { Label("Daily reset time", systemImage: "sunrise.fill") }
+            Section {
                 Stepper("Pause after \(draft.idleThresholdSeconds)s of no input",
                         value: $draft.idleThresholdSeconds, in: 15 ... 600, step: 15)
-            }
-            Section("Enforcement") {
+            } header: { Label("Idle pause", systemImage: "moon.zzz.fill") }
+            Section {
                 Toggle("Lock the screen when time runs out", isOn: $draft.enforcementEnabled)
                 Text("Shows a full-screen overlay at 0 that only a parent can dismiss (by PIN). Install the watchdog (see scripts/) so quitting the app can't bypass it.")
                     .font(.caption).foregroundStyle(.secondary)
-            }
-            Section("Parents' iMessage handles (used in a later version)") {
+            } header: { Label("Enforcement", systemImage: "lock.shield.fill") }
+            Section {
                 TextField("phone/email, comma-separated", text: $handlesText)
-            }
-            Section("Target macOS user") {
+            } header: { Label("Parents' iMessage handles (used in a later version)", systemImage: "message.fill") }
+            Section {
                 TextField("username", text: $draft.targetUsername)
-            }
-            Section("Parent PIN") {
+            } header: { Label("Target macOS user", systemImage: "person.fill") }
+            Section {
                 Toggle("Change PIN", isOn: $changePIN)
                 if changePIN {
                     SecureField("New PIN (4+ chars)", text: $newPIN)
                 }
-            }
+            } header: { Label("Parent PIN", systemImage: "key.fill") }
             HStack {
-                Button("Save", action: save)
+                Button { save() } label: { Label("Save", systemImage: "checkmark.circle.fill") }
                 if saved {
-                    Text("Saved").font(.caption).foregroundStyle(.green)
+                    Label("Saved", systemImage: "checkmark.seal.fill")
+                        .font(.caption).foregroundStyle(.green)
                 }
             }
         }

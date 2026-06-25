@@ -20,6 +20,9 @@ the foreground, and not idle).
 - **(v2)** Optional parent-PIN **lock overlay** at expiry, with PIN-gated
   +15/+30/+60-min extension, plus tamper-resistance (KeepAlive LaunchAgent + root
   watchdog) installed via `scripts/install.sh`
+- A friendly look: a playful weather glyph in the menu bar (sunny → cloudy → hourglass →
+  night as time winds down), a circular budget ring in the dropdown, and a warm
+  "see you tomorrow" lock screen rather than a stern lockdown
 
 Planned: **v3** one-way iMessage notifications to parents. See
 [`REQUIREMENTS.md`](REQUIREMENTS.md).

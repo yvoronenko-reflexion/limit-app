@@ -9,6 +9,11 @@ struct LimitMenuBarApp: App {
         MenuBarExtra {
             MenuContentView(model: model)
         } label: {
+            // A little weather glyph next to the countdown so the menu bar reads as
+            // playful, and hints at how much time is left at a glance.
+            let mood = TimeMood.make(remaining: model.remainingSeconds,
+                                     limit: model.settings.dailyLimitSeconds)
+            Image(systemName: mood.symbol)
             Text(model.menuBarTitle)
         }
         .menuBarExtraStyle(.window)

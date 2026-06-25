@@ -1,0 +1,72 @@
+name: LimitApp
+
+options:
+  bundleIdPrefix: com.yscale
+  deploymentTarget:
+    macOS: "13.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    # Ad-hoc local signing so it runs on this Mac without a paid Developer ID.
+    # Swap in DEVELOPMENT_TEAM + Developer ID for distribution (see v2/v3).
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "-"
+    ENABLE_HARDENED_RUNTIME: NO
+
+targets:
+  # Pure logic + thin system wrappers. No SwiftUI, so it can be unit-tested headlessly.
+  LimitCore:
+    type: framework
+    platform: macOS
+    sources:
+      - Sources/LimitCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.yscale.LimitCore
+        GENERATE_INFOPLIST_FILE: YES
+
+  # The SwiftUI menu-bar app (LSUIElement: no Dock icon).
+  LimitApp:
+    type: application
+    platform: macOS
+    sources:
+      - Sources/LimitApp
+    dependencies:
+      - target: LimitCore
+    entitlements:
+      path: Sources/LimitApp/LimitApp.entitlements
+      properties:
+        com.apple.security.app-sandbox: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.yscale.limitapp
+        PRODUCT_NAME: Limit
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_LSUIElement: YES
+        INFOPLIST_KEY_NSHumanReadableCopyright: ""
+
+  LimitCoreTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - Tests/LimitCoreTests
+    dependencies:
+      - target: LimitCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.yscale.LimitCoreTests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  LimitApp:
+    build:
+      targets:
+        LimitApp: all
+        LimitCoreTests: [test]
+    test:
+      targets:
+        - LimitCoreTests

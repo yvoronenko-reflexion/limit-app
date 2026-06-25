@@ -49,9 +49,11 @@ struct MenuContentView: View {
             }
             .keyboardShortcut(",", modifiers: .command)
 
-            Button { NSApp.terminate(nil) } label: {
-                Label("Quit Limit", systemImage: "power")
-                    .frame(maxWidth: .infinity, alignment: .leading)
+            if model.settings.showQuitButton {
+                Button { NSApp.terminate(nil) } label: {
+                    Label("Quit Limit", systemImage: "power")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
         }
         .padding(16)

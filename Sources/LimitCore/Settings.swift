@@ -19,6 +19,9 @@ public struct Settings: Codable, Equatable {
     /// v2 enforcement: when true, the budget reaching 0 raises the parent-PIN lock
     /// overlay. Default false so the app stays a passive timer until a parent opts in.
     public var enforcementEnabled: Bool
+    /// When true, the menu shows a "Quit Limit" button. Default false so the app can't be
+    /// trivially quit; turn on for debugging.
+    public var showQuitButton: Bool
 
     public init(
         dailyLimitSeconds: Int = 2 * 60 * 60,
@@ -28,7 +31,8 @@ public struct Settings: Codable, Equatable {
         parentPIN: ParentPIN.Stored? = nil,
         parentHandles: [String] = [],
         targetUsername: String = NSUserName(),
-        enforcementEnabled: Bool = false
+        enforcementEnabled: Bool = false,
+        showQuitButton: Bool = false
     ) {
         self.dailyLimitSeconds = dailyLimitSeconds
         self.resetHour = resetHour
@@ -38,6 +42,7 @@ public struct Settings: Codable, Equatable {
         self.parentHandles = parentHandles
         self.targetUsername = targetUsername
         self.enforcementEnabled = enforcementEnabled
+        self.showQuitButton = showQuitButton
     }
 
     // Resilient decoding: every field falls back to its default when absent, so a
@@ -54,6 +59,7 @@ public struct Settings: Codable, Equatable {
         parentHandles = try c.decodeIfPresent([String].self, forKey: .parentHandles) ?? d.parentHandles
         targetUsername = try c.decodeIfPresent(String.self, forKey: .targetUsername) ?? d.targetUsername
         enforcementEnabled = try c.decodeIfPresent(Bool.self, forKey: .enforcementEnabled) ?? d.enforcementEnabled
+        showQuitButton = try c.decodeIfPresent(Bool.self, forKey: .showQuitButton) ?? d.showQuitButton
     }
 }
 

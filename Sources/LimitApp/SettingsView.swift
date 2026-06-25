@@ -148,6 +148,11 @@ private struct SettingsFormView: View {
                 TextField("username", text: $draft.targetUsername)
             } header: { Label("Target macOS user", systemImage: "person.fill") }
             Section {
+                Toggle("Show quit button", isOn: $draft.showQuitButton)
+                Text("Adds a “Quit Limit” item to the menu. Off by default so the app can't be trivially quit; turn on for debugging.")
+                    .font(.caption).foregroundStyle(.secondary)
+            } header: { Label("Debugging", systemImage: "ladybug.fill") }
+            Section {
                 Toggle("Change PIN", isOn: $changePIN)
                 if changePIN {
                     SecureField("New PIN (4+ chars)", text: $newPIN)

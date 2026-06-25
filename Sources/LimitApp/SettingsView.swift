@@ -19,6 +19,9 @@ struct SettingsView: View {
         }
         .padding(20)
         .frame(width: 460)
+        // The Settings scene's view stays alive across open/close, so `unlocked`
+        // would persist and skip the PIN on the second open. Re-lock on close.
+        .onDisappear { unlocked = false }
     }
 }
 

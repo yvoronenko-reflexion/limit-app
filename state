@@ -1,0 +1,40 @@
+⏺ No — nothing is installed. Here's the actual state:
+
+  ┌────────────────────────────┬────────────────────────────────────────────────────────────┐
+  │         Component          │                           Status                           │
+  ├────────────────────────────┼────────────────────────────────────────────────────────────┤
+  │ /Applications/Limit.app    │ ❌ not copied                                              │
+  ├────────────────────────────┼────────────────────────────────────────────────────────────┤
+  │ KeepAlive LaunchAgent      │ ❌ not installed                                           │
+  ├────────────────────────────┼────────────────────────────────────────────────────────────┤
+  │ Root watchdog LaunchDaemon │ ❌ not installed                                           │
+  ├────────────────────────────┼────────────────────────────────────────────────────────────┤
+  │ Currently running app      │ ✅ but only the one you launched manually from DerivedData │
+  └────────────────────────────┴────────────────────────────────────────────────────────────┘
+
+  What happens today if the child quits the app
+
+  It stays quit. Nothing relaunches it, the countdown stops, and no lock ever appears. Right now this is a passive timer with zero tamper-resistance — Cmd-Q (or the Quit Limit menu item) fully
+  defeats it.
+
+  Two separate things are off:
+  1. Enforcement is opt-in and defaults off — even while running, it won't show the lock overlay at 0 until you enable "Lock the screen when time runs out" in Settings.
+  2. Autorun/relaunch requires running the install script once as admin — I deliberately didn't run it (it needs sudo and the child's username, and copies into /Applications + /Library).
+
+  To actually harden it
+
+  # 1. In Settings (parent PIN), turn ON "Lock the screen when time runs out"
+  # 2. Then, as an admin, install the watchdog:
+  cd /Users/yevgen/code/limit-app
+  sudo ./scripts/install.sh <child-username>
+
+  That copies the app to /Applications, installs the KeepAlive LaunchAgent (relaunches instantly on quit/kill) and a root LaunchDaemon that re-bootstraps the agent every 60s if it's booted out.
+  After that, quitting it just relaunches it.
+
+  What it still won't stop (honest scope)
+
+  Even installed, this resists only in-session evasion. It does not stop an admin account, booting to Recovery, or editing state.json directly. Closing that gap needs the privileged
+  root-helper-owns-the-budget design I documented in REQUIREMENTS.md under "Proposed hardening" — which you asked me to document but not build.
+
+  Want me to run the install now? If so, tell me the child's macOS username and I'll run it (it'll prompt for your sudo password).
+

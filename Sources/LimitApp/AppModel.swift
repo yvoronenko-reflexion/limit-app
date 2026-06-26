@@ -25,6 +25,7 @@ final class AppModel: ObservableObject {
 
     private var ticker: Timer?
     private var openSessionStart: Date?
+    private var openSessionLastActive: Date?
     private var ticksSinceSave = 0
 
     /// v2 enforcement overlay. Created lazily (needs `self`); only touched on the main
@@ -55,6 +56,7 @@ final class AppModel: ObservableObject {
     // MARK: Lifecycle
 
     func start() {
+        recoverOpenSession()
         notifier.requestAuthorization()
         let timer = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in self?.tick() }
         RunLoop.main.add(timer, forMode: .common)
@@ -148,7 +150,13 @@ final class AppModel: ObservableObject {
 
     private func updateSessionLogging(active: Bool, now: Date) {
         if active {
-            if openSessionStart == nil { openSessionStart = now }
+            if openSessionStart == nil {
+                openSessionStart = now
+                // Checkpoint immediately so even a stretch shorter than the save interval is
+                // recoverable if the app dies before it closes.
+                store.saveOpenSession(OpenSession(start: now, lastActive: now))
+            }
+            openSessionLastActive = now
         } else {
             closeOpenSession(at: now)
         }
@@ -158,6 +166,14 @@ final class AppModel: ObservableObject {
         guard let start = openSessionStart else { return }
         if end > start { logger.append(start: start, end: end) }
         openSessionStart = nil
+        openSessionLastActive = nil
+        store.clearOpenSession()
+    }
+
+    /// Finalize a session orphaned by a previous unclean exit, so the usage log catches up
+    /// to the already-charged budget. See `SettingsStore.recoverOpenSession(into:)`.
+    private func recoverOpenSession() {
+        store.recoverOpenSession(into: logger)
     }
 
     // MARK: Persistence
@@ -166,6 +182,11 @@ final class AppModel: ObservableObject {
         ticksSinceSave += 1
         if ticksSinceSave >= 5 {
             store.saveState(engine.state)
+            // Advance the open-session checkpoint on the same cadence, bounding the loss
+            // from an unclean exit to the save interval.
+            if let start = openSessionStart, let lastActive = openSessionLastActive {
+                store.saveOpenSession(OpenSession(start: start, lastActive: lastActive))
+            }
             ticksSinceSave = 0
         }
     }

@@ -13,4 +13,5 @@ public enum AppPaths {
     public static var settingsFile: URL { supportDir.appendingPathComponent("settings.json") }
     public static var stateFile: URL { supportDir.appendingPathComponent("state.json") }
     public static var usageLog: URL { supportDir.appendingPathComponent("usage.jsonl") }
+    public static var openSessionFile: URL { supportDir.appendingPathComponent("open-session.json") }
 }

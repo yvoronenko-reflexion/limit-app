@@ -19,4 +19,9 @@ public struct JSONFile<T: Codable> {
         guard let data = try? encoder.encode(value) else { return }
         try? data.write(to: url, options: .atomic)
     }
+
+    /// Remove the file, so a subsequent `read()` returns nil.
+    public func clear() {
+        try? FileManager.default.removeItem(at: url)
+    }
 }

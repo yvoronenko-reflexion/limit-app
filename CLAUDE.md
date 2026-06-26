@@ -108,7 +108,10 @@ Key design decisions:
 ## Data locations
 
 `~/Library/Application Support/limit-app/`: `settings.json`, `state.json` (current budget
-day + remaining + fired thresholds), `usage.jsonl` (one JSON session record per line).
+day + remaining + fired thresholds), `usage.jsonl` (one JSON session record per line),
+`open-session.json` (crash-safe checkpoint of the in-flight session — `start` +
+`lastActive`, refreshed on the 5s save cadence; finalized into `usage.jsonl` on the next
+launch if an unclean exit orphaned it, then deleted on clean close).
 
 ## Conventions
 

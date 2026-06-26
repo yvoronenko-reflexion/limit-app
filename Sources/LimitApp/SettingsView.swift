@@ -120,7 +120,7 @@ private struct SettingsFormView: View {
             Section {
                 Stepper("\(draft.dailyLimitSeconds / 60) minutes",
                         value: $draft.dailyLimitSeconds,
-                        in: 15 * 60 ... 12 * 60 * 60, step: 15 * 60)
+                        in: 5 * 60 ... 12 * 60 * 60, step: 5 * 60)
             } header: { Label("Daily limit", systemImage: "clock.fill") }
             Section {
                 HStack {
@@ -129,10 +129,17 @@ private struct SettingsFormView: View {
                     Text(AppModel.format(seconds: model.remainingSeconds)).monospacedDigit()
                 }
                 HStack {
+                    Button("+5 min") { model.extend(by: 5 * 60) }
                     Button("+15 min") { model.extend(by: 15 * 60) }
                     Button("+30 min") { model.extend(by: 30 * 60) }
                 }
-                Text("Adds time to today only — doesn't change the daily limit. Logged as an extension in usage history.")
+                HStack {
+                    Button("−5 min") { model.extend(by: -5 * 60) }
+                    Button("−15 min") { model.extend(by: -15 * 60) }
+                    Button("−30 min") { model.extend(by: -30 * 60) }
+                }
+                .disabled(model.remainingSeconds <= 0)
+                Text("Adjusts time for today only — doesn't change the daily limit. Logged as an extension in usage history.")
                     .font(.caption).foregroundStyle(.secondary)
             } header: { Label("Today's time", systemImage: "plus.circle.fill") }
             Section {

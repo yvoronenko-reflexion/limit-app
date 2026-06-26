@@ -22,6 +22,8 @@ struct MenuContentView: View {
             HStack(spacing: 6) {
                 Image(systemName: model.isActive ? "play.circle.fill" : "pause.circle.fill")
                     .foregroundStyle(model.isActive ? Color.green : .secondary)
+                    .symbolEffect(.bounce, value: model.isActive)
+                    .contentTransition(.symbolEffect(.replace))
                 Text(model.isActive ? "Counting · \(model.statusText)" : "Paused · \(model.statusText)")
                     .font(.caption)
                     .foregroundStyle(.secondary)

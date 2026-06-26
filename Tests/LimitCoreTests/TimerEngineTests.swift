@@ -31,11 +31,22 @@ final class TimerEngineTests: XCTestCase {
         XCTAssertTrue(engine.state.firedThresholds.isEmpty)
     }
 
-    func testExtendIgnoresNonPositive() {
+    func testExtendIgnoresZero() {
         let engine = makeEngine(remaining: 50)
         engine.extend(by: 0)
-        engine.extend(by: -10)
         XCTAssertEqual(engine.state.remainingSeconds, 50)
+    }
+
+    func testExtendByNegativeDeductsTime() {
+        let engine = makeEngine(remaining: 50)
+        engine.extend(by: -10)
+        XCTAssertEqual(engine.state.remainingSeconds, 40)
+    }
+
+    func testExtendClampsAtZero() {
+        let engine = makeEngine(remaining: 50)
+        engine.extend(by: -100)
+        XCTAssertEqual(engine.state.remainingSeconds, 0)
     }
 
     func testRolloverResetsBudgetOnNewDay() {

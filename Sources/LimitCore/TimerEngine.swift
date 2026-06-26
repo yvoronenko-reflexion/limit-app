@@ -31,11 +31,13 @@ public final class TimerEngine {
         }
     }
 
-    /// Grant extra time (e.g. a parent-approved extension). Clears fired warning
-    /// thresholds so warnings re-fire as the new budget counts down.
+    /// Adjust today's budget by a signed amount (e.g. a parent-approved
+    /// extension, or a deduction). Remaining is clamped at 0 so it never goes
+    /// negative. Clears fired warning thresholds so warnings re-fire as the new
+    /// budget counts down.
     public func extend(by seconds: Int) {
-        guard seconds > 0 else { return }
-        state.remainingSeconds += seconds
+        guard seconds != 0 else { return }
+        state.remainingSeconds = max(0, state.remainingSeconds + seconds)
         state.firedThresholds = []
     }
 

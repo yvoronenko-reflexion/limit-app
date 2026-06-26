@@ -26,6 +26,9 @@ struct LockOverlayView: View {
                 startPoint: .top, endPoint: .bottom)
                 .ignoresSafeArea()
 
+            StarField(count: showsControls ? 70 : 110)
+                .ignoresSafeArea()
+
             if showsControls {
                 card
                     .frame(maxWidth: 440)
@@ -38,9 +41,7 @@ struct LockOverlayView: View {
 
     private var friendlyBanner: some View {
         VStack(spacing: 16) {
-            Image(systemName: "moon.stars.fill")
-                .font(.system(size: 64))
-                .symbolRenderingMode(.multicolor)
+            FloatingMoon(size: 64)
             Text("All done for today")
                 .font(.system(size: 32, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
@@ -52,9 +53,7 @@ struct LockOverlayView: View {
 
     private var card: some View {
         VStack(spacing: 18) {
-            Image(systemName: "moon.stars.fill")
-                .font(.system(size: 56))
-                .symbolRenderingMode(.multicolor)
+            FloatingMoon(size: 56)
                 .padding(.bottom, 2)
 
             Text("All done for today!")
